@@ -3,6 +3,8 @@ package com.example.tickerdemo.presentation.ticker
 import com.example.tickerdemo.domain.model.ConnectionStatus
 import com.example.tickerdemo.domain.model.Quote
 import com.example.tickerdemo.domain.repository.QuoteRepository
+import com.example.tickerdemo.domain.usecase.ConnectToQuoteFeedUseCase
+import com.example.tickerdemo.domain.usecase.DisconnectFromQuoteFeedUseCase
 import com.example.tickerdemo.domain.usecase.ObserveConnectionStatusUseCase
 import com.example.tickerdemo.domain.usecase.ObserveQuotesUseCase
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -34,12 +37,26 @@ class TickerViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun buildViewModel() = TickerViewModel(
+        observeQuotes = ObserveQuotesUseCase(fakeRepository),
+        observeConnectionStatus = ObserveConnectionStatusUseCase(fakeRepository),
+        connectToQuoteFeed = ConnectToQuoteFeedUseCase(fakeRepository),
+        disconnectFromQuoteFeed = DisconnectFromQuoteFeedUseCase(fakeRepository),
+    )
+
+    @Test
+    fun `starting watching connects with the watched symbols`() = runTest {
+        val viewModel = buildViewModel()
+
+        viewModel.onAction(TickerAction.StartWatching)
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("AAPL", "TSLA", "BTC-USD", "EUR-USD"), fakeRepository.lastConnectedSymbols)
+    }
+
     @Test
     fun `quotes emitted after StartWatching are merged into state by symbol`() = runTest {
-        val viewModel = TickerViewModel(
-            observeQuotes = ObserveQuotesUseCase(fakeRepository),
-            observeConnectionStatus = ObserveConnectionStatusUseCase(fakeRepository),
-        )
+        val viewModel = buildViewModel()
 
         viewModel.onAction(TickerAction.StartWatching)
         dispatcher.scheduler.runCurrent()
@@ -56,10 +73,7 @@ class TickerViewModelTest {
 
     @Test
     fun `connection status updates flow into state`() = runTest {
-        val viewModel = TickerViewModel(
-            observeQuotes = ObserveQuotesUseCase(fakeRepository),
-            observeConnectionStatus = ObserveConnectionStatusUseCase(fakeRepository),
-        )
+        val viewModel = buildViewModel()
 
         viewModel.onAction(TickerAction.StartWatching)
         dispatcher.scheduler.runCurrent()
@@ -69,16 +83,41 @@ class TickerViewModelTest {
 
         assertEquals(ConnectionStatus.Reconnecting(1, 1_000), viewModel.state.value.connectionStatus)
     }
+
+    @Test
+    fun `stopping watching disconnects`() = runTest {
+        val viewModel = buildViewModel()
+
+        viewModel.onAction(TickerAction.StartWatching)
+        dispatcher.scheduler.runCurrent()
+        viewModel.onAction(TickerAction.StopWatching)
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(fakeRepository.disconnectCalled)
+    }
 }
 
 private class FakeQuoteRepository : QuoteRepository {
 
-    private val quotes = MutableSharedFlow<Quote>(extraBufferCapacity = 16)
-    private val statuses = MutableSharedFlow<ConnectionStatus>(extraBufferCapacity = 16)
+    private val quotesFlow = MutableSharedFlow<Quote>(extraBufferCapacity = 16)
+    private val statusesFlow = MutableSharedFlow<ConnectionStatus>(extraBufferCapacity = 16)
 
-    suspend fun emitQuote(quote: Quote) = quotes.emit(quote)
-    suspend fun emitStatus(status: ConnectionStatus) = statuses.emit(status)
+    var lastConnectedSymbols: List<String>? = null
+        private set
+    var disconnectCalled: Boolean = false
+        private set
 
-    override fun observeQuotes(symbols: List<String>): Flow<Quote> = quotes
-    override fun observeConnectionStatus(): Flow<ConnectionStatus> = statuses
+    suspend fun emitQuote(quote: Quote) = quotesFlow.emit(quote)
+    suspend fun emitStatus(status: ConnectionStatus) = statusesFlow.emit(status)
+
+    override val connectionStatus: Flow<ConnectionStatus> get() = statusesFlow
+    override val quotes: Flow<Quote> get() = quotesFlow
+
+    override suspend fun connect(symbols: List<String>) {
+        lastConnectedSymbols = symbols
+    }
+
+    override suspend fun disconnect() {
+        disconnectCalled = true
+    }
 }

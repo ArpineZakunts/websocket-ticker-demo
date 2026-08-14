@@ -6,12 +6,11 @@ import kotlinx.coroutines.flow.Flow
 
 interface QuoteRepository {
 
-    /**
-     * Subscribes to a live quote stream for the given symbols. The returned flow stays
-     * open for as long as it's collected and survives transient disconnects by
-     * reconnecting internally — callers don't need to retry.
-     */
-    fun observeQuotes(symbols: List<String>): Flow<Quote>
+    val connectionStatus: Flow<ConnectionStatus>
+    val quotes: Flow<Quote>
 
-    fun observeConnectionStatus(): Flow<ConnectionStatus>
+    /** Opens the socket and subscribes to [symbols]. Safe to call again to re-subscribe. */
+    suspend fun connect(symbols: List<String>)
+
+    suspend fun disconnect()
 }

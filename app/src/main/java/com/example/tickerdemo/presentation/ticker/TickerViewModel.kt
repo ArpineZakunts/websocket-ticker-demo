@@ -2,6 +2,8 @@ package com.example.tickerdemo.presentation.ticker
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.tickerdemo.domain.usecase.ConnectToQuoteFeedUseCase
+import com.example.tickerdemo.domain.usecase.DisconnectFromQuoteFeedUseCase
 import com.example.tickerdemo.domain.usecase.ObserveConnectionStatusUseCase
 import com.example.tickerdemo.domain.usecase.ObserveQuotesUseCase
 import kotlinx.coroutines.Job
@@ -17,6 +19,8 @@ private val WATCHED_SYMBOLS = listOf("AAPL", "TSLA", "BTC-USD", "EUR-USD")
 class TickerViewModel(
     private val observeQuotes: ObserveQuotesUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
+    private val connectToQuoteFeed: ConnectToQuoteFeedUseCase,
+    private val disconnectFromQuoteFeed: DisconnectFromQuoteFeedUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TickerState())
@@ -35,8 +39,10 @@ class TickerViewModel(
         if (watchJob != null) return
 
         watchJob = viewModelScope.launch {
+            connectToQuoteFeed(WATCHED_SYMBOLS)
+
             launch {
-                observeQuotes(WATCHED_SYMBOLS).onEach { quote ->
+                observeQuotes().onEach { quote ->
                     _state.update { it.copy(quotesBySymbol = it.quotesBySymbol + (quote.symbol to quote)) }
                 }.collect()
             }
@@ -51,6 +57,7 @@ class TickerViewModel(
     private fun stopWatching() {
         watchJob?.cancel()
         watchJob = null
+        viewModelScope.launch { disconnectFromQuoteFeed() }
     }
 
     override fun onCleared() {

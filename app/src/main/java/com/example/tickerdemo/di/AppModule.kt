@@ -4,15 +4,14 @@ import com.example.tickerdemo.data.remote.QuoteSocketClient
 import com.example.tickerdemo.data.remote.ReconnectStrategy
 import com.example.tickerdemo.data.repository.QuoteRepositoryImpl
 import com.example.tickerdemo.domain.repository.QuoteRepository
+import com.example.tickerdemo.domain.usecase.ConnectToQuoteFeedUseCase
+import com.example.tickerdemo.domain.usecase.DisconnectFromQuoteFeedUseCase
 import com.example.tickerdemo.domain.usecase.ObserveConnectionStatusUseCase
 import com.example.tickerdemo.domain.usecase.ObserveQuotesUseCase
 import com.example.tickerdemo.presentation.ticker.TickerViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.websocket.WebSockets
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
@@ -34,22 +33,28 @@ val networkModule = module {
             reconnectStrategy = get(),
         )
     }
-    // Survives individual screen lifecycles so the shared socket in the repository
-    // isn't torn down by a single ViewModel's onCleared().
-    single { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
 }
 
 val repositoryModule = module {
-    single<QuoteRepository> { QuoteRepositoryImpl(socketClient = get(), repositoryScope = get()) }
+    single<QuoteRepository> { QuoteRepositoryImpl(socketClient = get()) }
 }
 
 val useCaseModule = module {
     factory { ObserveQuotesUseCase(quoteRepository = get()) }
     factory { ObserveConnectionStatusUseCase(quoteRepository = get()) }
+    factory { ConnectToQuoteFeedUseCase(quoteRepository = get()) }
+    factory { DisconnectFromQuoteFeedUseCase(quoteRepository = get()) }
 }
 
 val viewModelModule = module {
-    viewModel { TickerViewModel(observeQuotes = get(), observeConnectionStatus = get()) }
+    viewModel {
+        TickerViewModel(
+            observeQuotes = get(),
+            observeConnectionStatus = get(),
+            connectToQuoteFeed = get(),
+            disconnectFromQuoteFeed = get(),
+        )
+    }
 }
 
 val appModules = listOf(networkModule, repositoryModule, useCaseModule, viewModelModule)
