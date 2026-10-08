@@ -10,11 +10,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private val WATCHED_SYMBOLS = listOf("AAPL", "TSLA", "BTC-USD", "EUR-USD")
+private val WATCHED_SYMBOLS = listOf("AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD", "ETH-USD", "EUR-USD", "GBP-USD")
 
 class TickerViewModel(
     private val observeQuotes: ObserveQuotesUseCase,
@@ -41,16 +42,12 @@ class TickerViewModel(
         watchJob = viewModelScope.launch {
             connectToQuoteFeed(WATCHED_SYMBOLS)
 
-            launch {
                 observeQuotes().onEach { quote ->
                     _state.update { it.copy(quotesBySymbol = it.quotesBySymbol + (quote.symbol to quote)) }
-                }.collect()
-            }
-            launch {
+                }.launchIn(viewModelScope)
                 observeConnectionStatus().onEach { status ->
                     _state.update { it.copy(connectionStatus = status) }
-                }.collect()
-            }
+                }.launchIn(viewModelScope)
         }
     }
 

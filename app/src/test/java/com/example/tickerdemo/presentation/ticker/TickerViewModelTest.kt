@@ -51,7 +51,10 @@ class TickerViewModelTest {
         viewModel.onAction(TickerAction.StartWatching)
         dispatcher.scheduler.runCurrent()
 
-        assertEquals(listOf("AAPL", "TSLA", "BTC-USD", "EUR-USD"), fakeRepository.lastConnectedSymbols)
+        assertEquals(
+            listOf("AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD", "ETH-USD", "EUR-USD", "GBP-USD"),
+            fakeRepository.lastConnectedSymbols,
+        )
     }
 
     @Test

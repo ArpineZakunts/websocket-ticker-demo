@@ -9,12 +9,12 @@
         android:icon="@mipmap/ic_launcher"
         android:label="Ticker Demo"
         android:name=".TickerDemoApp"
-        android:theme="@style/Theme.Material3.DayNight">
+        android:theme="@style/Theme.TickerDemoApp">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Material3.DayNight">
+            android:theme="@style/Theme.TickerDemoApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -1,7 +1,9 @@
 package com.example.tickerdemo.di
 
+import com.example.tickerdemo.BuildConfig
 import com.example.tickerdemo.data.remote.QuoteSocketClient
 import com.example.tickerdemo.data.remote.ReconnectStrategy
+import com.example.tickerdemo.data.repository.DemoQuoteRepository
 import com.example.tickerdemo.data.repository.QuoteRepositoryImpl
 import com.example.tickerdemo.domain.repository.QuoteRepository
 import com.example.tickerdemo.domain.usecase.ConnectToQuoteFeedUseCase
@@ -36,7 +38,13 @@ val networkModule = module {
 }
 
 val repositoryModule = module {
-    single<QuoteRepository> { QuoteRepositoryImpl(socketClient = get()) }
+    single<QuoteRepository> {
+        if (BuildConfig.USE_DEMO_FEED) {
+            DemoQuoteRepository(reconnectStrategy = get())
+        } else {
+            QuoteRepositoryImpl(socketClient = get())
+        }
+    }
 }
 
 val useCaseModule = module {

@@ -17,8 +17,19 @@ android {
         versionName = "1.0"
     }
 
+    buildTypes {
+        debug {
+            // No public quote server exists for this demo, so debug builds use a simulated feed.
+            buildConfigField("boolean", "USE_DEMO_FEED", "true")
+        }
+        release {
+            buildConfigField("boolean", "USE_DEMO_FEED", "false")
+        }
+    }
+
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {

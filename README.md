@@ -26,6 +26,10 @@ survives drops without the UI ever seeing an unhandled exception.
 - `data/repository/QuoteRepositoryImpl.kt` — thin adapter from the domain's `connect`/
   `disconnect`/`quotes`/`connectionStatus` contract onto the socket client; the ViewModel
   decides when the connection opens and closes, not the Flow's collection lifecycle.
+- `data/repository/DemoQuoteRepository.kt` — offline stand-in for the feed, used in debug
+  builds (`BuildConfig.USE_DEMO_FEED`). Prices follow a small random walk, and the feed
+  simulates one connection drop that goes through `Reconnecting` with real
+  `ReconnectStrategy` delays, so the full status lifecycle is visible without a backend.
 - `domain/model/Quote.kt` — a `ConnectionStatus` sealed type (`Connecting` / `Connected` /
   `Reconnecting(attempt, delayMillis)` / `Failed`) surfaced all the way to the UI, so the user
   sees *why* data stopped updating instead of a frozen screen.
@@ -36,6 +40,12 @@ survives drops without the UI ever seeing an unhandled exception.
 
 ## Running
 
-Open in Android Studio, let Gradle sync, run `app`. There's no live backend behind the
-placeholder host, so the screen will sit in "Reconnecting" — the point is the connection
-lifecycle and backoff logic, not a working feed.
+Open in Android Studio, let Gradle sync, run `app`.
+
+- **Debug** builds use `DemoQuoteRepository`: eight instruments (stocks, crypto, FX) tick
+  live, and after ~25 seconds the feed simulates a drop and reconnects with backoff.
+- **Release** builds use the real `QuoteSocketClient`. There's no live backend behind the
+  placeholder host (`quotes.example-ticker-demo.com`), so a release build will sit in
+  "Reconnecting". Point `QUOTE_SERVER_HOST` in `di/AppModule.kt` at a real server to use it.
+
+Unit tests: `./gradlew :app:testDebugUnitTest`.
